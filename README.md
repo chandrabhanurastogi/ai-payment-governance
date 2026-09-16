@@ -17,15 +17,21 @@ Java, Spring Boot and Spring AI, one architectural phase at a time.
 
 ## Repository layout
 
-A single multi-module Maven build (see ADR-0002), one module per
-architectural component. Every module is currently an empty skeleton —
-see its own `README.md` for its purpose and which phase populates it:
+Phase 0 is documentation only — no build files or source code exist yet.
+Starting in Phase 1, this becomes a single Maven module / single Spring
+Boot application (see ADR-0007, superseding an earlier multi-module plan
+in ADR-0002). Architectural components are Java packages within that one
+application, not separate modules or services, unless a concrete need
+later justifies splitting one out:
 
-- `payment-domain-service` (Phase 1)
-- `agent-runtime` (Phase 2)
-- `tool-governance` (Phase 3)
-- `human-approval` (Phase 4)
+- `domain` (Phase 1)
+- `agent` (Phase 2)
+- `governance` (Phase 3)
+- `approval` (Phase 4)
 - `observability` (Phase 5)
-- `ai-gateway` (Phase 6)
-- `enterprise-context` (Phase 7)
-- `evaluation` (Phase 8)
+- `gateway` (Phase 6)
+- `context` (Phase 7)
+- `eval` (Phase 8)
+
+See [`docs/architecture/overview.md`](docs/architecture/overview.md) for
+what each package is responsible for.

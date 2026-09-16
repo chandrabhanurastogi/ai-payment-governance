@@ -12,19 +12,22 @@ All payment data must be synthetic.
 
 ## Technology
 
-Primary technology:
+Decided (see docs/adr/):
 
 * Java 21+
 * Spring Boot
 * Spring AI
-* Spring Security
-* PostgreSQL
 * Maven
-* Docker
-* Testcontainers
-* OpenTelemetry
-* Prometheus
-* Grafana
+
+Candidate technology for later phases - aspirational, not yet decided.
+Each will get its own ADR when its owning phase starts, and may be
+replaced if a simpler option turns out to be enough:
+
+* Spring Security (Phase 3/4 - tool authorization, approval identity)
+* PostgreSQL (Phase 1 - payment domain persistence)
+* Docker / Testcontainers (Phase 1+ - local/integration test infrastructure)
+* OpenTelemetry (Phase 5 - observability)
+* Prometheus / Grafana (Phase 5 - observability)
 
 Prefer simple, understandable technologies over unnecessary infrastructure.
 

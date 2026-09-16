@@ -58,3 +58,19 @@ This ADR is a prerequisite for Phase 3 (tool-governance) and Phase 4
 (human-approval) - both phases exist because this boundary exists. If a
 future phase finds a reason to relax this rule, it must be done via a new
 ADR that explicitly supersedes this one, not silently.
+
+**Amendment (ADR-0006):** this ADR's decision (the trust boundary itself)
+stands unchanged, but its Context section overstated `tool-governance`'s
+centrality relative to the *other* governance controls (identity,
+approval, audit, model/provider controls, context controls, evaluation).
+See ADR-0006 for the corrected framing: governance as a system of
+controls, not a single choke point.
+
+**Amendment (ADR-0007):** where this ADR says "module" (e.g.
+`agent-runtime` module, `tool-governance` module), read that as the
+*logical component*, not a Maven module. ADR-0007 supersedes ADR-0002's
+multi-module build and implements these components as packages within a
+single application instead. The trust-boundary rule itself - the agent
+package never calls the domain package directly, everything routes
+through the governance package - is unchanged; only the build/deployment
+unit changed.

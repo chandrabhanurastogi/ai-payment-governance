@@ -7,10 +7,17 @@ made, see `docs/adr/`. For terms used below, see `glossary.md`.
 
 ## Current state (end of Phase 0)
 
-No application code exists yet. What exists is: a multi-module Maven
-skeleton (one empty module per component below) and this documentation
-set. Every statement below describes intended architecture to be built,
-not yet-running behavior.
+No application code exists yet, and no build files exist yet either —
+Phase 0 is documentation only (see ADR-0007). Everything below describes
+architecture *intended* for Phase 1 onward, not yet-running behavior.
+
+The components below are **logical boundaries**, not separate
+deployables. Starting in Phase 1 they are built as **packages inside one
+Spring Boot application**, sharing a single `pom.xml` and a single
+runtime process. A component is only promoted to its own Maven module —
+and, later, only a module is considered for promotion to its own
+service — when a concrete, named need arises (see ADR-0007's promotion
+rule). Until then, treat every box below as "a package," not "a service."
 
 ## System context
 
@@ -18,63 +25,89 @@ The system has one human-facing entry point (not yet built) that issues
 requests expressing intent ("pay invoice #123", "check account balance").
 Everything downstream of that entry point is the architecture described
 here. There is no external network integration in this project — all
-"enterprise systems" the agent touches are the synthetic
-`payment-domain-service`.
+"enterprise systems" the agent touches are the synthetic payment domain
+built in Phase 1.
 
-## Components and boundaries
+## Logical components and boundaries
 
 ```
                      ┌─────────────────────┐
-                     │   ai-gateway         │  (Phase 6)
+                     │   gateway            │  (Phase 6)
                      │  (provider broker)   │
                      └──────────▲───────────┘
                                 │ model calls only
                      ┌──────────┴───────────┐        ┌──────────────────────┐
-   user/business  →  │   agent-runtime      │  ←───  │ enterprise-context    │ (Phase 7)
+   user/business  →  │   agent               │  ←───  │ context               │ (Phase 7)
    intent             │   (Phase 2)          │  reads │ (read-only RAG)      │
                      └──────────┬───────────┘        └──────────────────────┘
                                 │ tool calls only (no direct domain access)
                      ┌──────────▼───────────┐
-                     │  tool-governance      │  (Phase 3)
+                     │  governance           │  (Phase 3)
                      │  (policy checkpoint)  │
                      └────┬─────────────┬────┘
                           │ allow        │ escalate
                           ▼              ▼
               ┌───────────────────┐  ┌─────────────────┐
-              │ payment-domain-   │  │ human-approval    │ (Phase 4)
-              │ service (Phase 1) │  │ (pause/resume)    │
+              │ domain            │  │ approval          │ (Phase 4)
+              │ (Phase 1)         │  │ (pause/resume)    │
               └───────────────────┘  └─────────────────┘
 
-   observability (Phase 5) instruments agent-runtime, tool-governance,
-   and human-approval — cross-cutting, not shown as a call path.
+   observability (Phase 5) instruments agent, governance, and approval —
+   cross-cutting, not shown as a call path.
 
-   evaluation (Phase 8) runs outside this diagram entirely, exercising
-   agent-runtime from the outside as a test consumer.
+   eval (Phase 8) runs outside this diagram entirely, exercising the
+   agent package from the outside as a test consumer.
+
+   All boxes above are packages within one Spring Boot application
+   (ADR-0007), not separate deployables.
 ```
 
-## The load-bearing boundary
+## The trust boundary, and why it isn't the whole story
 
-The single rule every later phase must preserve (ADR-0004):
-**`agent-runtime` never calls `payment-domain-service` directly.**
-Every path from "agent" to "money moves" passes through
-`tool-governance`. This is what makes the rest of the phases
-(approval, observability, gateway) meaningful — each of them is a control
-attached to that one choke point, not scattered checks across the
-codebase.
+The one rule every later phase must preserve (ADR-0004): **the `agent`
+package never calls the `domain` package directly.** Every path from
+"agent" to "money moves" passes through `governance`. For the MVP this is
+enforced by code review, with an architecture test (e.g. ArchUnit) to be
+added once there's real code to enforce it (see ADR-0007) — there is no
+process/network boundary backing it, since everything runs in one JVM.
+
+That boundary is necessary, but it is not the same thing as
+"governance." Per ADR-0006, governance is a system of controls, each
+answering a different question, mapped to the logical component that
+owns it:
+
+| Control | Owned by (package) | Question it answers |
+|---|---|---|
+| Authorization & Policy | governance | Is this tool call allowed at all? |
+| Human Approval | approval | If policy can't decide alone, what does a human say? |
+| Audit & Observability | observability | After the fact, what happened and why? |
+| Model/Provider Controls | gateway | Is this call to the model itself within limits? |
+| Context/Knowledge Controls | context | What can the agent read, kept separate from what it can act on? |
+| Behavior-over-time | eval | Has behavior regressed across a change? |
+| **Identity** *(gap)* | not yet owned | Who is the user, and who/what is the agent acting as? |
+| **Data Classification** *(gap)* | not yet owned | What sensitivity does this data carry? |
+
+`gateway` governs the *model* call path; `governance` governs the
+*domain* call path — these are two separate boundaries, not one. Identity
+and data classification are tracked here as open gaps rather than
+silently assumed to live inside `governance`; see ADR-0006 for when each
+is expected to get an owner.
 
 ## Component reference
 
-See each module's own `README.md` for its specific purpose, phase, and
-"what it will NOT contain" boundary:
+| Package (illustrative name) | Phase | Purpose | Will NOT contain |
+|---|---|---|---|
+| `domain` | 1 | Synthetic payment system of record: accounts, transactions, ledger, real invariants | Any AI/agent/LLM logic |
+| `agent` | 2 | Spring AI conversation loop; turns intent into tool calls | Direct calls into `domain` |
+| `governance` | 3 | Tool schema registry + policy enforcement at the agent→domain boundary | Agent/LLM logic; payment business logic |
+| `approval` | 4 | Durable pause/resume for actions `governance` escalates to a human | The policy decision of *whether* to escalate |
+| `observability` | 5 | Shared tracing/logging conventions for prompts, tool calls, decisions | Business or agent logic |
+| `gateway` | 6 | Broker in front of the model provider(s): credentials, rate limits, cost, logging | Agent orchestration logic |
+| `context` | 7 | Read-only retrieval of policy/product/case documents | Any write path back into `domain` |
+| `eval` | 8 | Offline/online scoring of agent behavior against golden scenarios | Anything the running agent depends on at request time |
 
-- `payment-domain-service` — synthetic system of record (Phase 1)
-- `agent-runtime` — Spring AI agent orchestration (Phase 2)
-- `tool-governance` — tool schema + policy checkpoint (Phase 3)
-- `human-approval` — durable pause/resume for risky actions (Phase 4)
-- `observability` — shared tracing/logging for agent behavior (Phase 5)
-- `ai-gateway` — model provider broker/control plane (Phase 6)
-- `enterprise-context` — read-only retrieval/RAG (Phase 7)
-- `evaluation` — offline/online agent behavior scoring (Phase 8)
+Exact package names will be finalized when each phase actually creates
+them — the table above is the current intent, not a commitment.
 
 ## Updating this document
 
