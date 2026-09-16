@@ -1,0 +1,24 @@
+# MVP vs. Enterprise — the running ledger
+
+This document tracks, per component, what this learning project does for
+the MVP and what a real enterprise deployment would need instead, so the
+gap is always visible rather than implied. Update it whenever a phase
+lands and makes a simplification.
+
+| Component | This project (MVP) | A real enterprise | Why we simplify here |
+|---|---|---|---|
+| Payment domain | One Spring Boot service, synthetic data, in-process rules | Many systems (core banking, ledger, fraud, sanctions screening), each with its own team and SLAs | The point is to demonstrate agent *governance*, not to rebuild core banking; one realistic service is enough to have real invariants to violate |
+| Repository/build topology | Single repo, multi-module Maven build (ADR-0002) | Separate repos per component, independently deployed, versioned contracts between them | Lower setup overhead while the boundaries themselves are still being learned/validated |
+| Agent ↔ domain boundary | Enforced by module structure + code review only (ADR-0004) | Enforced by network policy/service mesh + mTLS so it's physically unbypassable | No infra to segment networks in a single learning repo; the *architectural intent* is still real |
+| Tool governance | Simple rule table / interceptor in code | Policy-as-code engine (e.g. OPA/Rego), centrally managed, audited, versioned separately from application code | A hand-rolled policy layer is enough to demonstrate the concept; a real policy engine is a separate, mature discipline |
+| Human approval | Approval queue table + REST endpoint, single approver | Full workflow engine (e.g. Camunda/Temporal), maker-checker with role-based multi-party approval, SLA escalation | Durable pause/resume is the concept being taught; multi-party workflow adds process complexity, not architectural insight |
+| Observability | Structured logging, maybe a local trace exporter | OpenTelemetry GenAI semantic conventions feeding a real trace store (e.g. Tempo/Jaeger) with retention/redaction policy | Enough to see the shape of "AI observability ≠ APM"; a production trace store is an operational concern, not a design one |
+| AI gateway | Thin proxy/logging interceptor, maybe backed by Spring AI's own abstractions | Dedicated gateway product (e.g. LiteLLM, Kong AI Gateway, Portkey) with multi-tenant cost allocation, model allowlists | Demonstrates *why* the boundary exists; a production gateway is a build-vs-buy decision most enterprises would buy |
+| Enterprise context / RAG | Small local document set, simple vector store | Enterprise search integration, access-control-aware retrieval (a user/agent only retrieves what its own permissions allow), document freshness pipelines | The governance lesson (keep retrieval read-only, separate from action) doesn't require enterprise-scale corpora |
+| Evaluation | A handful of golden scenarios run manually/in CI | Continuous, statistically significant eval sets, human-graded samples, drift monitoring in production | Small golden sets are enough to demonstrate the CI-gate pattern; production-scale eval is its own specialty (and cost center) |
+
+## How to use this document
+
+Each phase's closing commit should add or update a row here if it
+introduces a new simplification, so this stays the single place to answer
+"what did we skip, and what would it take to not skip it."
