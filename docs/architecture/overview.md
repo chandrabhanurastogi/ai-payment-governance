@@ -11,6 +11,10 @@ No application code exists yet, and no build files exist yet either —
 Phase 0 is documentation only (see ADR-0007). Everything below describes
 architecture *intended* for Phase 1 onward, not yet-running behavior.
 
+A lightweight threat model (`docs/security/threat-model.md`) exists
+alongside this document, mapping major risks to the phase expected to
+address them.
+
 The components below are **logical boundaries**, not separate
 deployables. Starting in Phase 1 they are built as **packages inside one
 Spring Boot application**, sharing a single `pom.xml` and a single
@@ -97,7 +101,7 @@ is expected to get an owner.
 
 | Package (illustrative name) | Phase | Purpose | Will NOT contain |
 |---|---|---|---|
-| `domain` | 1 | Synthetic payment system of record: accounts, transactions, ledger, real invariants | Any AI/agent/LLM logic |
+| `domain` | 1 | Synthetic payment system of record: payment, fraud/risk, authorization, settlement, and incident concepts as small sub-areas, with real invariants concentrated in payment/transaction/ledger | Any AI/agent/LLM logic; five elaborate mini-systems - depth stays shallow outside the core invariants |
 | `agent` | 2 | Spring AI conversation loop; turns intent into tool calls | Direct calls into `domain` |
 | `governance` | 3 | Tool schema registry + policy enforcement at the agent→domain boundary | Agent/LLM logic; payment business logic |
 | `approval` | 4 | Durable pause/resume for actions `governance` escalates to a human | The policy decision of *whether* to escalate |
@@ -108,6 +112,27 @@ is expected to get an owner.
 
 Exact package names will be finalized when each phase actually creates
 them — the table above is the current intent, not a commitment.
+
+## Relationship to the full project specification
+
+`prompts/full_project_specification.md` describes the long-term vision
+for this system (see `CLAUDE.md` for how it relates to the ADRs and this
+roadmap). Two places where this document deliberately narrows or diverges
+from that specification's illustrative detail:
+
+- **"AI Gateway" scope.** The specification's diagram (§4) places an "AI
+  Gateway / AI Control Plane" at the very front of the system, combining
+  entry routing with governance dispatch. This document instead keeps
+  `gateway` narrowly scoped to the model-provider call path only
+  (ADR-0006) - a single-responsibility component is more consistent with
+  ADR-0006's decomposition than one component absorbing "all of AI
+  governance."
+- **Repository structure.** The specification's example repository
+  layout (§20) proposes separate services per domain capability and per
+  platform component. ADR-0007's promotion rule already answers the
+  question that section poses ("which components should be independently
+  deployable"): none of them yet has a concrete reason to be, so all
+  remain packages in one application.
 
 ## Updating this document
 

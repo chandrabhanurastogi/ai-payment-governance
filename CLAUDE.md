@@ -10,6 +10,15 @@ This is not a production payment system.
 
 All payment data must be synthetic.
 
+## Full Project Specification
+
+`prompts/full_project_specification.md` is the long-term vision and desired capability set for this project.
+
+* It is not binding architecture.
+* Accepted ADRs govern architectural decisions.
+* `docs/roadmap.md` governs sequencing and current scope.
+* When the specification conflicts with an accepted ADR, the ADR takes precedence unless a future ADR explicitly supersedes it based on a concrete need.
+
 ## Technology
 
 Decided (see docs/adr/):
